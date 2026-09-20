@@ -1,0 +1,623 @@
+﻿<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDC KPI Dashboard - กระทรวงสาธารณสุข</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Apache ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
+    <!-- Google Fonts: Kanit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                    },
+                    colors: {
+                        medical: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { background-color: #f8fafc; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .active-nav-item {
+            background-color: #f0fdfa; 
+            color: #0d9488; 
+            border-right: 4px solid #0d9488;
+        }
+        .active-nav-item i { color: #0d9488; }
+        
+        /* Modal transitions */
+        .modal-overlay {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease-in-out;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        /* Card Hover Effect */
+        .kpi-card {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-color: #0d9488;
+        }
+    </style>
+</head>
+<body class="text-gray-800 font-sans h-screen flex overflow-hidden">
+
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20 flex-shrink-0">
+        <div class="h-16 flex items-center px-6 border-b border-gray-100 bg-medical-50">
+            <div class="w-8 h-8 bg-medical-600 text-white rounded-lg flex items-center justify-center shadow-md mr-3">
+                <i class="ph ph-heartbeat text-xl font-bold"></i>
+            </div>
+            <span class="text-lg font-bold text-gray-800 tracking-wide">HDC <span class="text-medical-600">KPI</span></span>
+        </div>
+
+        <nav class="flex-1 overflow-y-auto py-6">
+            <div class="px-4 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">หมวดหมู่ตัวชี้วัด</div>
+            <ul id="menuList" class="space-y-1">
+                <!-- Menu items injected by JS -->
+            </ul>
+        </nav>
+
+        <div class="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
+            <div class="flex items-center">
+                <span class="relative flex h-2.5 w-2.5 mr-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                </span>
+                เชื่อมต่อฐานข้อมูล
+            </div>
+            <span class="text-gray-400 font-mono text-[10px]">v2.1</span>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col h-full relative overflow-hidden">
+        <header class="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 lg:px-8 z-10">
+            <div class="flex items-center">
+                <h2 id="headerTitle" class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <i class="ph-fill ph-gauge text-medical-600"></i>
+                    ภาพรวมตัวชี้วัด
+                </h2>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <!-- Year Selector Dropdown -->
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="ph ph-calendar-blank text-gray-400"></i>
+                    </div>
+                    <select id="yearSelect" class="bg-gray-50 border border-gray-200 text-gray-700 text-sm font-medium rounded-lg focus:ring-medical-500 focus:border-medical-500 block w-full pl-9 p-2 hover:bg-gray-100 cursor-pointer outline-none transition-colors appearance-none pr-8">
+                        <option value="2569">ปีงบประมาณ 2569</option>
+                        <option value="2568">ปีงบประมาณ 2568</option>
+                        <option value="2567">ปีงบประมาณ 2567</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-0 pr-2 flex items-center pointer-events-none">
+                        <i class="ph ph-caret-down text-gray-400 text-xs"></i>
+                    </div>
+                </div>
+
+                <div class="h-6 w-px bg-gray-200 mx-1 hidden sm:block"></div>
+                
+                <div class="flex items-center cursor-pointer hover:bg-gray-50 p-1.5 rounded-lg transition-colors">
+                    <div class="text-right hidden sm:block mr-3">
+                        <div class="text-sm font-semibold text-gray-900">นายสมเกียรติ อุทัยวงษ์</div>
+                        <div class="text-xs text-medical-600">พยาบาลวิชาชีพชำนาญการ</div>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-medical-100 border border-medical-500 flex items-center justify-center text-medical-700 font-bold shadow-inner">
+                    สอ
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 lg:p-8 w-full bg-slate-50 relative">
+            <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h3 id="categoryTitle" class="text-xl font-bold text-gray-800"></h3>
+                    <p id="categoryDesc" class="text-sm text-gray-500 mt-1"></p>
+                    <div class="mt-2 inline-flex items-center text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-100 shadow-sm">
+                        <i class="ph ph-info mr-1.5 text-sm"></i>
+                        คลิกที่หน้าปัดเพื่อดูข้อมูลจำแนกรายหน่วยบริการ (รพ.สต.) อ.หนองมะโมง
+                    </div>
+                </div>
+                <div class="px-4 py-2 bg-white rounded-lg border border-gray-200 shadow-sm text-sm font-medium text-gray-600">
+                    ข้อมูลของปี <span id="displayYear" class="text-medical-600 font-bold">2569</span>
+                </div>
+            </div>
+
+            <div id="chartsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Charts injected by JS -->
+            </div>
+            
+            <div class="mt-8 flex flex-wrap justify-center gap-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <div class="flex items-center text-sm font-medium text-gray-700">
+                    <span class="w-3 h-3 rounded-full bg-[#ef4444] mr-2 shadow-sm"></span> ต้องเร่งรัด (ไม่ผ่านเกณฑ์)
+                </div>
+                <div class="flex items-center text-sm font-medium text-gray-700">
+                    <span class="w-3 h-3 rounded-full bg-[#facc15] mr-2 shadow-sm"></span> เฝ้าระวัง (ปานกลาง)
+                </div>
+                <div class="flex items-center text-sm font-medium text-gray-700">
+                    <span class="w-3 h-3 rounded-full bg-[#10b981] mr-2 shadow-sm"></span> ผ่านเกณฑ์
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="dataModal" class="modal-overlay fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-start p-6 border-b border-gray-100 bg-gray-50">
+                <div class="pr-8">
+                    <div class="text-xs font-bold text-medical-600 uppercase tracking-wider mb-1 flex items-center">
+                        <i class="ph-fill ph-map-pin mr-1.5 text-sm"></i> จำแนกรายหน่วยบริการ อ.หนองมะโมง
+                    </div>
+                    <h3 id="modalKpiTitle" class="text-xl font-bold text-gray-900 leading-tight"></h3>
+                    <div class="flex items-center gap-3 mt-2">
+                        <p id="modalKpiTarget" class="text-sm text-gray-500 font-medium"></p>
+                        <span id="modalYearBadge" class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-700">ปี 2569</span>
+                    </div>
+                </div>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-700 transition-colors p-1.5 bg-white rounded-md border border-gray-200 shadow-sm hover:bg-gray-100">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+            
+            <!-- Modal Body (Table) -->
+            <div class="overflow-auto flex-1 p-0">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-white sticky top-0 z-10 shadow-sm">
+                        <tr class="text-sm font-semibold text-gray-600 border-b border-gray-200">
+                            <th class="px-6 py-4 w-16 text-center">ลำดับ</th>
+                            <th class="px-6 py-4">รหัส</th>
+                            <th class="px-6 py-4">ชื่อหน่วยบริการ</th>
+                            <th class="px-6 py-4 text-center">เป้าหมาย</th>
+                            <th class="px-6 py-4 text-right">ผลงาน (%)</th>
+                            <th class="px-6 py-4 text-center">สถานะ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalTableBody" class="text-sm divide-y divide-gray-100 bg-white">
+                        <!-- Table rows injected by JS -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center text-xs text-gray-500">
+                <span id="modalTimestamp">ข้อมูล ณ วันที่: ประมวลผลล่าสุด</span>
+                <button id="closeModalBtnFooter" class="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-medium transition-colors shadow-sm">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // BASE DATA TEMPLATE (Blueprint)
+        const dashboardDataBlueprint = {
+            diabetes: {
+                id: 'diabetes', title: 'เบาหวาน (DM)', icon: 'ph-drop',
+                description: 'ตัวชี้วัดการคัดกรองและการดูแลผู้ป่วยโรคเบาหวาน',
+                kpis: [
+                    { id: 'dm1', title: '1. คัดกรองเบาหวาน', target: '> 90%', baseValue: 92.5, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'dm2', title: '2. ควบคุมน้ำตาลได้ดี (HbA1c < 7)', target: '> 40%', baseValue: 35.2, max: 100, zones: [[0.3, '#ef4444'], [0.4, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'dm3', title: '3. ตรวจจอประสาทตา', target: '> 60%', baseValue: 65.8, max: 100, zones: [[0.4, '#ef4444'], [0.6, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'dm4', title: '4. ตรวจการทำงานของไต', target: '> 60%', baseValue: 58.4, max: 100, zones: [[0.4, '#ef4444'], [0.6, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'dm5', title: '5. ได้รับการตรวจเท้า', target: '> 80%', baseValue: 85.1, max: 100, zones: [[0.6, '#ef4444'], [0.8, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'dm6', title: '6. แทรกซ้อนทางไต (ยิ่งน้อยยิ่งดี)', target: '< 5%', baseValue: 6.2, max: 20, zones: [[0.25, '#10b981'], [0.5, '#facc15'], [1.0, '#ef4444']] }
+                ]
+            },
+            hypertension: {
+                id: 'hypertension', title: 'ความดันโลหิตสูง (HT)', icon: 'ph-activity',
+                description: 'ตัวชี้วัดการคัดกรองและการดูแลผู้ป่วยโรคความดันโลหิตสูง',
+                kpis: [
+                    { id: 'ht1', title: '1. คัดกรองความดันโลหิตสูง', target: '> 90%', baseValue: 95.1, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'ht2', title: '2. ควบคุมความดันได้ดี', target: '> 50%', baseValue: 52.4, max: 100, zones: [[0.4, '#ef4444'], [0.5, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'ht3', title: '3. ประเมิน CVD Risk', target: '> 80%', baseValue: 88.2, max: 100, zones: [[0.6, '#ef4444'], [0.8, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'ht4', title: '4. แทรกซ้อนหลอดเลือดสมอง (น้อยดี)', target: '< 5%', baseValue: 2.1, max: 20, zones: [[0.25, '#10b981'], [0.5, '#facc15'], [1.0, '#ef4444']] }
+                ]
+            },
+            childDev: {
+                id: 'childDev', title: 'พัฒนาการเด็ก', icon: 'ph-baby',
+                description: 'ตัวชี้วัดงานอนามัยแม่และเด็ก และพัฒนาการปฐมวัย',
+                kpis: [
+                    { id: 'cd1', title: '1. เด็กปฐมวัยได้รับการคัดกรอง', target: '> 90%', baseValue: 94.5, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'cd2', title: '2. เด็กปฐมวัยมีพัฒนาการสมวัย', target: '> 85%', baseValue: 89.2, max: 100, zones: [[0.7, '#ef4444'], [0.85, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'cd3', title: '3. สงสัยล่าช้าได้รับการกระตุ้น', target: '> 90%', baseValue: 92.8, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'cd4', title: '4. หญิงตั้งครรภ์ฝากครรภ์คุณภาพ', target: '> 75%', baseValue: 72.4, max: 100, zones: [[0.6, '#ef4444'], [0.75, '#facc15'], [1.0, '#10b981']] }
+                ]
+            },
+            vaccine: {
+                id: 'vaccine', title: 'วัคซีน (EPI)', icon: 'ph-syringe',
+                description: 'ความครอบคลุมของการได้รับวัคซีนตามแผนงาน',
+                kpis: [
+                    { id: 'vac1', title: '1. วัคซีนเด็กอายุครบ 1 ปี', target: '> 90%', baseValue: 96.2, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'vac2', title: '2. วัคซีนเด็กอายุครบ 2 ปี', target: '> 90%', baseValue: 93.5, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'vac3', title: '3. วัคซีนเด็กอายุครบ 3 ปี', target: '> 90%', baseValue: 91.0, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'vac4', title: '4. วัคซีนเด็กอายุครบ 5 ปี', target: '> 90%', baseValue: 88.5, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'vac5', title: '5. นร.หญิง ป.5 ได้รับ HPV', target: '> 80%', baseValue: 85.4, max: 100, zones: [[0.6, '#ef4444'], [0.8, '#facc15'], [1.0, '#10b981']] }
+                ]
+            },
+            tb: {
+                id: 'tb', title: 'วัณโรค (TB)', icon: 'ph-lungs',
+                description: 'ตัวชี้วัดความสำเร็จการรักษาและการคัดกรองวัณโรค',
+                kpis: [
+                    { id: 'tb1', title: '1. อัตราความสำเร็จการรักษา (Success)', target: '> 85%', baseValue: 86.5, max: 100, zones: [[0.7, '#ef4444'], [0.85, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'tb2', title: '2. อัตราการขาดยา (ยิ่งน้อยยิ่งดี)', target: '< 5%', baseValue: 3.8, max: 20, zones: [[0.25, '#10b981'], [0.5, '#facc15'], [1.0, '#ef4444']] },
+                    { id: 'tb3', title: '3. คัดกรองวัณโรคในกลุ่มเสี่ยง', target: '> 90%', baseValue: 78.4, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] }
+                ]
+            },
+            screening: {
+                id: 'screening', title: 'งานคัดกรองมะเร็ง', icon: 'ph-magnifying-glass',
+                description: 'การคัดกรองมะเร็งปากมดลูก และมะเร็งลำไส้ใหญ่',
+                kpis: [
+                    { id: 'scr1', title: '1. สตรี 30-59 ปี คัดกรองมะเร็งปากมดลูก', target: '> 20%', baseValue: 24.5, max: 50, zones: [[0.3, '#ef4444'], [0.4, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'scr2', title: '2. ปชช 50-70 ปี คัดกรองมะเร็งลำไส้ (FIT)', target: '> 60%', baseValue: 55.2, max: 100, zones: [[0.4, '#ef4444'], [0.6, '#facc15'], [1.0, '#10b981']] }
+                ]
+            },
+            elderly: {
+                id: 'elderly', title: 'ผู้สูงอายุ (Elderly)', icon: 'ph-wheelchair',
+                description: 'การดูแลผู้สูงอายุและการประเมินความสามารถในการใช้ชีวิต',
+                kpis: [
+                    { id: 'eld1', title: '1. ผู้สูงอายุได้รับการประเมิน ADL', target: '> 80%', baseValue: 88.7, max: 100, zones: [[0.6, '#ef4444'], [0.8, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'eld2', title: '2. ผู้สูงอายุติดเตียงได้รับการดูแล (LTC)', target: '> 90%', baseValue: 92.1, max: 100, zones: [[0.8, '#ef4444'], [0.9, '#facc15'], [1.0, '#10b981']] },
+                    { id: 'eld3', title: '3. ผู้สูงอายุมีฟันแท้ใช้งาน 20 ซี่ขึ้นไป', target: '> 50%', baseValue: 45.8, max: 100, zones: [[0.4, '#ef4444'], [0.5, '#facc15'], [1.0, '#10b981']] }
+                ]
+            }
+        };
+
+        let currentCategory = 'diabetes';
+        let currentYear = '2569';
+        let currentData = {}; // Stores year-specific data
+        let chartInstances = [];
+        
+        const hospitalNames = [
+            'รพ.หนองมะโมง', 
+            'รพ.สต.หนองมะโมง', 
+            'รพ.สต.สะพานหิน', 
+            'รพ.สต.กุดจอก', 
+            'รพ.สต.วังตะเคียน'
+        ];
+
+        // Seeded pseudo-random function so same year always gives same data
+        function seededRandom(seed) {
+            let x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+
+        // Generate dataset based on year
+        function generateDataForYear(yearStr) {
+            const yearNum = parseInt(yearStr);
+            const dataMap = JSON.parse(JSON.stringify(dashboardDataBlueprint)); // Deep Copy
+            
+            Object.values(dataMap).forEach(cat => {
+                cat.kpis.forEach(kpi => {
+                    // Calculate a variance based on year difference (older years have slightly different data)
+                    const yearDiff = 2569 - yearNum;
+                    // Use id string length + year diff as a seed for consistent randomness per kpi
+                    const seed = kpi.id.charCodeAt(0) + yearNum; 
+                    const variance = (seededRandom(seed) * 16) - 8; // Random between -8 and +8
+                    
+                    let val = kpi.baseValue - (yearDiff * 2) + variance;
+                    
+                    // Clamp
+                    if(val < 0) val = 0;
+                    if(val > kpi.max) val = kpi.max;
+                    if(val > 100 && kpi.max <= 100) val = 100;
+                    
+                    kpi.value = parseFloat(val.toFixed(1));
+                });
+            });
+            return dataMap;
+        }
+
+        function checkPass(value, targetStr) {
+            let pass = false;
+            if (targetStr.includes('>')) {
+                let num = parseFloat(targetStr.replace('>', '').replace('%', '').trim());
+                pass = value >= num;
+            } else if (targetStr.includes('<')) {
+                let num = parseFloat(targetStr.replace('<', '').replace('%', '').trim());
+                pass = value <= num;
+            }
+            return pass;
+        }
+
+        function getValueColor(value, targetStr) {
+            return checkPass(value, targetStr) ? '#10b981' : '#ef4444'; 
+        }
+
+        function renderMenu() {
+            const menuList = document.getElementById('menuList');
+            menuList.innerHTML = '';
+            Object.values(currentData).forEach(cat => {
+                const li = document.createElement('li');
+                li.className = 'px-3';
+                const a = document.createElement('a');
+                a.href = '#';
+                a.className = `flex items-center px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group ${cat.id === currentCategory ? 'active-nav-item' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`;
+                a.innerHTML = `<i class="ph ${cat.icon} text-lg mr-3 ${cat.id === currentCategory ? '' : 'text-gray-400 group-hover:text-gray-600'}"></i>${cat.title}`;
+                
+                a.onclick = (e) => {
+                    e.preventDefault();
+                    if(currentCategory !== cat.id) {
+                        currentCategory = cat.id;
+                        renderMenu(); 
+                        loadCategoryData(cat.id);
+                    }
+                };
+                li.appendChild(a);
+                menuList.appendChild(li);
+            });
+        }
+
+        function getGaugeOption(kpi) {
+            return {
+                animationDuration: 1500, // Smooth transition
+                animationEasing: 'cubicOut',
+                series: [
+                    {
+                        type: 'gauge',
+                        startAngle: 210, endAngle: -30,
+                        min: 0, max: kpi.max, splitNumber: 5,
+                        radius: '100%',
+                        itemStyle: { color: '#1f2937', shadowColor: 'rgba(0,0,0,0.1)', shadowBlur: 4 },
+                        progress: { show: false },
+                        pointer: {
+                            icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                            length: '16%', width: 10,
+                            offsetCenter: [0, '-60%'],
+                            itemStyle: { color: 'auto' }
+                        },
+                        axisLine: { lineStyle: { width: 18, color: kpi.zones } },
+                        axisTick: { length: 6, lineStyle: { color: 'auto', width: 2 } },
+                        splitLine: { length: 12, lineStyle: { color: 'auto', width: 2 } },
+                        axisLabel: {
+                            color: '#64748b', fontSize: 10, distance: 22,
+                            formatter: function (value) {
+                                if (value === 0 || value === kpi.max) return value;
+                                return '';
+                            }
+                        },
+                        title: { show: false },
+                        detail: {
+                            fontSize: 24, offsetCenter: [0, '45%'],
+                            valueAnimation: true,
+                            formatter: function (value) { return '{value|' + value.toFixed(1) + '}{unit|%}'; },
+                            rich: {
+                                value: { fontSize: 26, fontWeight: 'bold', color: getValueColor(kpi.value, kpi.target) },
+                                unit: { fontSize: 14, color: '#64748b', padding: [0, 0, -5, 2] }
+                            }
+                        },
+                        data: [{ value: kpi.value }]
+                    }
+                ]
+            };
+        }
+
+        function loadCategoryData(categoryId, updateOnly = false) {
+            const cat = currentData[categoryId];
+            
+            document.getElementById('headerTitle').innerHTML = `<i class="ph-fill ph-gauge text-medical-600"></i> ${cat.title}`;
+            document.getElementById('categoryTitle').innerText = cat.title;
+            document.getElementById('categoryDesc').innerText = cat.description;
+            document.getElementById('displayYear').innerText = currentYear;
+
+            const chartsGrid = document.getElementById('chartsGrid');
+
+            if (!updateOnly) {
+                // Full recreate of DOM elements
+                chartInstances.forEach(chart => chart.dispose());
+                chartInstances = [];
+                chartsGrid.innerHTML = ''; 
+
+                cat.kpis.forEach((kpi, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'kpi-card bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col relative overflow-hidden group';
+                    card.onclick = () => openModal(kpi);
+                    
+                    card.innerHTML = `
+                        <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-medical-200 to-medical-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="text-center mb-2 mt-1">
+                            <h3 class="font-semibold text-gray-800 text-sm h-10 flex items-center justify-center leading-snug px-1">${kpi.title}</h3>
+                            <div class="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-medium mt-1">
+                                เป้าหมาย: ${kpi.target}
+                            </div>
+                        </div>
+                        <div id="chart-${categoryId}-${index}" class="w-full h-48 mt-auto"></div>
+                    `;
+                    chartsGrid.appendChild(card);
+                });
+
+                setTimeout(() => {
+                    cat.kpis.forEach((kpi, index) => {
+                        const domId = `chart-${categoryId}-${index}`;
+                        const chartDom = document.getElementById(domId);
+                        if (chartDom) {
+                            const myChart = echarts.init(chartDom);
+                            myChart.setOption(getGaugeOption(kpi));
+                            chartInstances.push(myChart);
+                        }
+                    });
+                }, 50);
+            } else {
+                // Update existing charts smoothly without replacing DOM
+                cat.kpis.forEach((kpi, index) => {
+                    if (chartInstances[index]) {
+                        chartInstances[index].setOption({
+                            series: [{
+                                data: [{ value: kpi.value }],
+                                detail: {
+                                    rich: {
+                                        value: { color: getValueColor(kpi.value, kpi.target) }
+                                    }
+                                }
+                            }]
+                        });
+                    }
+                });
+            }
+        }
+
+        function openModal(kpi) {
+            const modal = document.getElementById('dataModal');
+            document.getElementById('modalKpiTitle').innerText = kpi.title;
+            
+            document.getElementById('modalKpiTarget').innerText = `ภาพรวม อ.หนองมะโมง: ${kpi.value}% (เป้าหมาย: ${kpi.target})`;
+            document.getElementById('modalYearBadge').innerText = `ปีงบประมาณ ${currentYear}`;
+            document.getElementById('modalTimestamp').innerText = `ประมวลผลข้อมูลของปี ${currentYear} ล่าสุด`;
+            
+            const tbody = document.getElementById('modalTableBody');
+            tbody.innerHTML = '';
+            
+            const listSize = hospitalNames.length;
+            const mockCodes = ['10745', '07831', '07832', '07833', '07834'];
+            
+            for(let i=0; i<listSize; i++) {
+                // Seed for table rows based on hospital index + year + kpi
+                const seed = i + parseInt(currentYear) + kpi.id.charCodeAt(0);
+                let modifier = (seededRandom(seed) * 30) - 15;
+                let hValue = kpi.value + modifier;
+                
+                // Clamp limits
+                if (hValue > kpi.max) hValue = kpi.max;
+                if (hValue > 100 && kpi.max <= 100) hValue = 100;
+                if (hValue < 0) hValue = 0;
+                
+                hValue = parseFloat(hValue.toFixed(1));
+                const isPass = checkPass(hValue, kpi.target);
+                
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 transition-colors';
+                
+                const statusBadge = isPass 
+                    ? `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><i class="ph-fill ph-check-circle mr-1"></i> ผ่านเกณฑ์</span>`
+                    : `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"><i class="ph-fill ph-x-circle mr-1"></i> ไม่ผ่านเกณฑ์</span>`;
+                
+                tr.innerHTML = `
+                    <td class="px-6 py-4 text-center text-gray-500">${i + 1}</td>
+                    <td class="px-6 py-4 font-mono text-gray-500">${mockCodes[i]}</td>
+                    <td class="px-6 py-4 font-medium text-gray-900">${hospitalNames[i]}</td>
+                    <td class="px-6 py-4 text-center text-gray-500">${kpi.target}</td>
+                    <td class="px-6 py-4 text-right font-bold ${isPass ? 'text-green-600' : 'text-red-500'}">${hValue}%</td>
+                    <td class="px-6 py-4 text-center">${statusBadge}</td>
+                `;
+                tbody.appendChild(tr);
+            }
+            
+            modal.classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('dataModal').classList.remove('active');
+        }
+
+        // ==========================================
+        // Event Listeners
+        // ==========================================
+        
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('closeModalBtnFooter').addEventListener('click', closeModal);
+        
+        // ปิด Modal เมื่อผู้ใช้คลิกที่พื้นที่ว่างด้านนอก (Overlay)
+        document.getElementById('dataModal').addEventListener('click', function(e) {
+            if(e.target === this) {
+                closeModal();
+            }
+        });
+
+        // อัปเดตข้อมูลแบบ Smooth Transition เมื่อเปลี่ยนปีงบประมาณ
+        document.getElementById('yearSelect').addEventListener('change', function(e) {
+            currentYear = e.target.value;
+            document.getElementById('displayYear').innerText = currentYear;
+            currentData = generateDataForYear(currentYear);
+            
+            // อัปเดตเฉพาะข้อมูลใน ECharts (ไม่เรนเดอร์ DOM ใหม่)
+            loadCategoryData(currentCategory, true);
+        });
+
+        // รองรับการย่อ/ขยายหน้าจอเพื่อให้กราฟ ECharts ปรับขนาดตาม (Responsive)
+        window.addEventListener('resize', function() {
+            chartInstances.forEach(chart => {
+                if (chart) chart.resize();
+            });
+        });
+
+        // ==========================================
+        // Initialization
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', () => {
+            currentData = generateDataForYear(currentYear);
+            renderMenu();
+            loadCategoryData(currentCategory);
+        });
+    </script>
+</body>
+</html>
+// นำ API URL ที่คัดลอกไว้มาใส่ตรงนี้
+const scriptUrl = 'https://script.google.com/macros/s/AKfycbyUQeipga1804Zwsc7rlCKnQHCqjgA3YXHrLidE0NGfEivzGiA3IfMGuKg0MkXYOlqs/exec';
+
+// ฟังก์ชันสำหรับดึงข้อมูล
+async function fetchKpiData() {
+    try {
+        // เรียกข้อมูลจาก Google Apps Script
+        const response = await fetch(scriptUrl);
+        const data = await response.json();
+        
+        if(data.status === "success") {
+            console.log("ดึงข้อมูลสำเร็จ:", data.kpiData);
+            // TODO: นำ data.kpiData ไปสั่งวาดกราฟ ECharts หรือสร้างตารางใน Dashboard ของคุณ
+            // renderTable(data.kpiData);
+        }
+    } catch (error) {
+        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
+    }
+}
+
+// สั่งให้ดึงข้อมูลทันทีที่หน้าเว็บโหลดเสร็จ
+document.addEventListener('DOMContentLoaded', fetchKpiData);
