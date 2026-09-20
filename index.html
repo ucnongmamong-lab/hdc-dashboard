@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
@@ -89,6 +89,7 @@
 </head>
 <body class="text-gray-800 font-sans h-screen flex overflow-hidden">
 
+    <!-- Sidebar Navigation -->
     <aside class="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm z-20 flex-shrink-0">
         <div class="h-16 flex items-center px-6 border-b border-gray-100 bg-medical-50">
             <div class="w-8 h-8 bg-medical-600 text-white rounded-lg flex items-center justify-center shadow-md mr-3">
@@ -107,8 +108,8 @@
         <div class="p-4 border-t border-gray-100 bg-gray-50 text-xs text-gray-500 flex items-center justify-between">
             <div class="flex items-center">
                 <span class="relative flex h-2.5 w-2.5 mr-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
                 </span>
                 เชื่อมต่อฐานข้อมูล
             </div>
@@ -116,7 +117,9 @@
         </div>
     </aside>
 
+    <!-- Main Content Area -->
     <div class="flex-1 flex flex-col h-full relative overflow-hidden">
+        <!-- Header Bar -->
         <header class="h-16 bg-white border-b border-gray-200 shadow-sm flex items-center justify-between px-6 lg:px-8 z-10">
             <div class="flex items-center">
                 <h2 id="headerTitle" class="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -149,12 +152,13 @@
                         <div class="text-xs text-medical-600">พยาบาลวิชาชีพชำนาญการ</div>
                     </div>
                     <div class="w-10 h-10 rounded-full bg-medical-100 border border-medical-500 flex items-center justify-center text-medical-700 font-bold shadow-inner">
-                    สอ
+                        สอ
                     </div>
                 </div>
             </div>
         </header>
 
+        <!-- Dashboard Content -->
         <main class="flex-1 overflow-y-auto p-6 lg:p-8 w-full bg-slate-50 relative">
             <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
@@ -170,10 +174,12 @@
                 </div>
             </div>
 
+            <!-- Charts Grid -->
             <div id="chartsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 <!-- Charts injected by JS -->
             </div>
             
+            <!-- Legend Footer -->
             <div class="mt-8 flex flex-wrap justify-center gap-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                 <div class="flex items-center text-sm font-medium text-gray-700">
                     <span class="w-3 h-3 rounded-full bg-[#ef4444] mr-2 shadow-sm"></span> ต้องเร่งรัด (ไม่ผ่านเกณฑ์)
@@ -188,6 +194,7 @@
         </main>
     </div>
 
+    <!-- Data Detail Modal -->
     <div id="dataModal" class="modal-overlay fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
         <div class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-gray-100">
             
@@ -237,6 +244,7 @@
         </div>
     </div>
 
+    <!-- Application Script -->
     <script>
         // BASE DATA TEMPLATE (Blueprint)
         const dashboardDataBlueprint = {
@@ -337,15 +345,12 @@
             
             Object.values(dataMap).forEach(cat => {
                 cat.kpis.forEach(kpi => {
-                    // Calculate a variance based on year difference (older years have slightly different data)
                     const yearDiff = 2569 - yearNum;
-                    // Use id string length + year diff as a seed for consistent randomness per kpi
                     const seed = kpi.id.charCodeAt(0) + yearNum; 
                     const variance = (seededRandom(seed) * 16) - 8; // Random between -8 and +8
                     
                     let val = kpi.baseValue - (yearDiff * 2) + variance;
                     
-                    // Clamp
                     if(val < 0) val = 0;
                     if(val > kpi.max) val = kpi.max;
                     if(val > 100 && kpi.max <= 100) val = 100;
@@ -398,7 +403,7 @@
 
         function getGaugeOption(kpi) {
             return {
-                animationDuration: 1500, // Smooth transition
+                animationDuration: 1500,
                 animationEasing: 'cubicOut',
                 series: [
                     {
@@ -451,7 +456,6 @@
             const chartsGrid = document.getElementById('chartsGrid');
 
             if (!updateOnly) {
-                // Full recreate of DOM elements
                 chartInstances.forEach(chart => chart.dispose());
                 chartInstances = [];
                 chartsGrid.innerHTML = ''; 
@@ -486,7 +490,6 @@
                     });
                 }, 50);
             } else {
-                // Update existing charts smoothly without replacing DOM
                 cat.kpis.forEach((kpi, index) => {
                     if (chartInstances[index]) {
                         chartInstances[index].setOption({
@@ -519,12 +522,10 @@
             const mockCodes = ['10745', '07831', '07832', '07833', '07834'];
             
             for(let i=0; i<listSize; i++) {
-                // Seed for table rows based on hospital index + year + kpi
                 const seed = i + parseInt(currentYear) + kpi.id.charCodeAt(0);
                 let modifier = (seededRandom(seed) * 30) - 15;
                 let hValue = kpi.value + modifier;
                 
-                // Clamp limits
                 if (hValue > kpi.max) hValue = kpi.max;
                 if (hValue > 100 && kpi.max <= 100) hValue = 100;
                 if (hValue < 0) hValue = 0;
@@ -564,24 +565,20 @@
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
         document.getElementById('closeModalBtnFooter').addEventListener('click', closeModal);
         
-        // ปิด Modal เมื่อผู้ใช้คลิกที่พื้นที่ว่างด้านนอก (Overlay)
         document.getElementById('dataModal').addEventListener('click', function(e) {
             if(e.target === this) {
                 closeModal();
             }
         });
 
-        // อัปเดตข้อมูลแบบ Smooth Transition เมื่อเปลี่ยนปีงบประมาณ
         document.getElementById('yearSelect').addEventListener('change', function(e) {
             currentYear = e.target.value;
             document.getElementById('displayYear').innerText = currentYear;
             currentData = generateDataForYear(currentYear);
             
-            // อัปเดตเฉพาะข้อมูลใน ECharts (ไม่เรนเดอร์ DOM ใหม่)
             loadCategoryData(currentCategory, true);
         });
 
-        // รองรับการย่อ/ขยายหน้าจอเพื่อให้กราฟ ECharts ปรับขนาดตาม (Responsive)
         window.addEventListener('resize', function() {
             chartInstances.forEach(chart => {
                 if (chart) chart.resize();
@@ -599,25 +596,3 @@
     </script>
 </body>
 </html>
-// นำ API URL ที่คัดลอกไว้มาใส่ตรงนี้
-const scriptUrl = 'https://script.google.com/macros/s/AKfycbyUQeipga1804Zwsc7rlCKnQHCqjgA3YXHrLidE0NGfEivzGiA3IfMGuKg0MkXYOlqs/exec';
-
-// ฟังก์ชันสำหรับดึงข้อมูล
-async function fetchKpiData() {
-    try {
-        // เรียกข้อมูลจาก Google Apps Script
-        const response = await fetch(scriptUrl);
-        const data = await response.json();
-        
-        if(data.status === "success") {
-            console.log("ดึงข้อมูลสำเร็จ:", data.kpiData);
-            // TODO: นำ data.kpiData ไปสั่งวาดกราฟ ECharts หรือสร้างตารางใน Dashboard ของคุณ
-            // renderTable(data.kpiData);
-        }
-    } catch (error) {
-        console.error("เกิดข้อผิดพลาดในการดึงข้อมูล:", error);
-    }
-}
-
-// สั่งให้ดึงข้อมูลทันทีที่หน้าเว็บโหลดเสร็จ
-document.addEventListener('DOMContentLoaded', fetchKpiData);
