@@ -353,12 +353,28 @@
         let currentData = {};
         let chartInstances = [];
         
+        // รายชื่อหน่วยบริการในอำเภอหนองมะโมง ครบถ้วนทั้ง 8 แห่ง
         const hospitalNames = [
-            'รพ.หนองมะโมง', 
-            'รพ.สต.หนองมะโมง', 
-            'รพ.สต.สะพานหิน', 
-            'รพ.สต.กุดจอก', 
-            'รพ.สต.วังตะเคียน'
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลหนองมะโมง',
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลบ้านหนองตะขบ',
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลวังตะเคียน',
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลบ้านวังตะเคียน',
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลสะพานหิน',
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลบ้านน้ำพุ',
+            'โรงพยาบาลส่งเสริมสุขภาพตำบลกุดจอก',
+            'โรงพยาบาลหนองมะโมง'
+        ];
+
+        // รหัสสถานบริการ 5 หลัก (HCODE)
+        const mockCodes = [
+            '01666', 
+            '01667', 
+            '01668', 
+            '01669', 
+            '01670', 
+            '01671', 
+            '01672', 
+            '27974'
         ];
 
         function seededRandom(seed) {
@@ -557,7 +573,6 @@
             tbody.innerHTML = '';
             
             const listSize = hospitalNames.length;
-            const mockCodes = ['10745', '07831', '07832', '07833', '07834'];
             
             for(let i=0; i<listSize; i++) {
                 const seed = i + parseInt(currentYear) + kpi.id.charCodeAt(0);
@@ -579,13 +594,14 @@
                     : `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-red-100 text-red-800"><i class="ph-fill ph-x-circle mr-1"></i> ไม่ผ่าน</span>`;
                 
                 tr.innerHTML = `
-                    <td class="px-4 sm:px-6 py-3 text-center text-gray-400">${i + 1}</td>
+                    <td class="px-4 sm:px-6 py-3 text-center text-gray-400 font-medium">${i + 1}</td>
                     <td class="px-3 sm:px-6 py-3 font-mono text-gray-500">${mockCodes[i]}</td>
                     <td class="px-4 sm:px-6 py-3 font-medium text-gray-900">${hospitalNames[i]}</td>
                     <td class="px-3 sm:px-6 py-3 text-center text-gray-500">${kpi.target}</td>
-                    <td class="px-4 sm:px-6 py-3 text-right font-bold ${isPass ? 'text-green-600' : 'text-red-500'}">${hValue}%</td>
+                    <td class="px-4 sm:px-6 py-3 text-right font-bold ${isPass ? 'text-green-600' : 'text-red-600'}">${hValue}%</td>
                     <td class="px-4 sm:px-6 py-3 text-center">${statusBadge}</td>
                 `;
+                
                 tbody.appendChild(tr);
             }
             
@@ -596,45 +612,45 @@
             document.getElementById('dataModal').classList.remove('active');
         }
 
-        // ==========================================
-        // Event Listeners
-        // ==========================================
-        
+        // ผูก Event Listeners สำหรับ UI และปุ่มต่างๆ
         document.getElementById('openDrawerBtn').addEventListener('click', openMobileDrawer);
         document.getElementById('closeDrawerBtn').addEventListener('click', closeMobileDrawer);
         document.getElementById('mobileDrawerBackdrop').addEventListener('click', closeMobileDrawer);
-
+        
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
         document.getElementById('closeModalBtnFooter').addEventListener('click', closeModal);
         
+        // ปิด Modal เมื่อคลิกบริเวณพื้นหลัง (Backdrop)
         document.getElementById('dataModal').addEventListener('click', function(e) {
-            if(e.target === this) closeModal();
+            if (e.target === this) {
+                closeModal();
+            }
         });
 
+        // จัดการเมื่อมีการเลือกเปลี่ยนปีงบประมาณ
         document.getElementById('yearSelect').addEventListener('change', function(e) {
             currentYear = e.target.value;
-            document.getElementById('displayYear').innerText = currentYear;
             currentData = generateDataForYear(currentYear);
             loadCategoryData(currentCategory, true);
         });
 
-        // Responsive Resize Handler with Debounce
-        let resizeTimer;
-        window.addEventListener('resize', function() {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                chartInstances.forEach(chart => {
-                    if (chart) chart.resize();
-                });
-            }, 100);
+        // จัดการเมื่อมีการ Resize หน้าจอ (Responsive Charts)
+        window.addEventListener('resize', () => {
+            chartInstances.forEach(chart => {
+                if (chart) chart.resize();
+            });
         });
 
-        // Initialize App
-        document.addEventListener('DOMContentLoaded', () => {
+        // ฟังก์ชันเริ่มต้นระบบ (Initialize)
+        function initDashboard() {
             currentData = generateDataForYear(currentYear);
             renderMenu();
             loadCategoryData(currentCategory);
-        });
+        }
+
+        // สั่งรันเมื่อโหลด DOM ครบถ้วน
+        document.addEventListener('DOMContentLoaded', initDashboard);
+
     </script>
 </body>
 </html>
